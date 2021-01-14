@@ -44,6 +44,19 @@ def get_columns(table):
                 return cols
     return None
 
+def get_table(col):
+    f = open('files/metadata.txt')
+    lines = f.readlines()
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if line == '<begin_table>':
+            table_name = lines[i + 1].strip()
+            j = i + 2
+            while lines[j].strip() != '<end_table>':
+                if lines[j].strip() == col:
+                    return table_name
+                j = j + 1
+
 def parse_column(s):
     global is_aggregate
     global is_non_aggregate
@@ -79,22 +92,54 @@ def parse_expression(s):
     le = re.compile("(.*) <= (.*)")
     ge = re.compile("(.*) >= (.*)")
     if eq.match(s) is not None and len(eq.match(s).groups()) == 2:
-        return (eq.match(s).groups()[0].strip() ,lambda lhs: lhs == int(eq.match(s).groups()[1].strip()))
+        try:
+            p = int(eq.match(s).groups()[1].strip())
+            return (eq.match(s).groups()[0].strip() ,lambda lhs: lhs == p, None)
+        except:
+            return (eq.match(s).groups()[0].strip() ,lambda lhs, rhs: lhs == rhs, eq.match(s).groups()[1].strip())
+
     if lt.match(s) is not None and len(lt.match(s).groups()) == 2:
-        return (lt.match(s).groups()[0].strip() ,lambda lhs: lhs < int(lt.match(s).groups()[1].strip()))
+        try:
+            p = int(lt.match(s).groups()[1].strip())
+            return (lt.match(s).groups()[0].strip() ,lambda lhs: lhs < p, None)
+        except:
+            return (lt.match(s).groups()[0].strip() ,lambda lhs, rhs: lhs < rhs, lt.match(s).groups()[1].strip())
     if gt.match(s) is not None and len(gt.match(s).groups()) == 2:
-        return (gt.match(s).groups()[0].strip() ,lambda lhs: lhs > int(gt.match(s).groups()[1].strip()))
+        try:
+            p = int(gt.match(s).groups()[1].strip())
+            return (gt.match(s).groups()[0].strip() ,lambda lhs: lhs > p, None)
+        except:
+            return (gt.match(s).groups()[0].strip() ,lambda lhs, rhs: lhs > rhs, gt.match(s).groups()[1].strip())            
     if le.match(s) is not None and len(le.match(s).groups()) == 2:
-        return (le.match(s).groups()[0].strip() ,lambda lhs: lhs <= int(le.match(s).groups()[1].strip()))
+        try:
+            p = int(le.match(s).groups()[1].strip())
+            return (le.match(s).groups()[0].strip() ,lambda lhs: lhs <= p, None)
+        except:
+            return (le.match(s).groups()[0].strip() ,lambda lhs, rhs: lhs <= rhs, le.match(s).groups()[1].strip())            
     if ge.match(s) is not None and len(ge.match(s).groups()) == 2:
-        return (ge.match(s).groups()[0].strip() ,lambda lhs: lhs >= int(ge.match(s).groups()[1].strip()))
+        try:
+            p = int(ge.match(s).groups()[1].strip())
+            return (ge.match(s).groups()[0].strip() ,lambda lhs: lhs >= p, None)
+        except:
+            return (ge.match(s).groups()[0].strip() ,lambda lhs, rhs: lhs >= rhs, ge.match(s).groups()[1].strip())
+
     print("Syntax Error: Invalid expression", s)
     exit(0)
 
 def transform_columns(exp, available_columns):
+    idx = None
+    if exp[2] != None:
+        for i, v in enumerate(available_columns):
+            if exp[2] == v:
+                idx = i
+        if idx == None:
+            print("Semantic Error: Column does not exist!")
+            exit(0)
     for i, v in enumerate(available_columns):
-        if exp[0] == v:
+        if exp[0] == v and exp[2] == None:
             return (lambda s: exp[1](s[i]))
+        elif exp[0] == v and exp[2] != None:
+            return (lambda s: exp[1](s[i], s[idx]))
     print("Semantic Error: Column does not exist!")
     exit(0)
 
@@ -116,6 +161,13 @@ if len(sys.argv) != 2:
     print("Incorrect Usage! Expected Usage: python3 main.py query")
     exit(0)
 query = sys.argv[1]
+
+query = query.strip()
+if(query[-1] != ";"):
+	print("Syntax Error: Need to terminate statement with a semi-colon!")
+	exit(0)
+
+query = query[0: len(query) - 1]
 query_tokens = sqlparse.parse(query)[0]
 
 if query_tokens.get_type() == 'UNKNOWN':
@@ -134,6 +186,7 @@ elif query_tokens.get_type() == 'DELETE':
 
 # Parse for valid table
 available_columns = []
+corresponding_tables = []
 data = []
 for i, token in enumerate(query_tokens.tokens):
     if token.ttype == sqlparse.tokens.Keyword and token.value.upper() == 'FROM':
@@ -177,6 +230,18 @@ for token in query_tokens.tokens:
     if token.ttype == sqlparse.tokens.Keyword and token.value.upper() == 'DISTINCT':
         distinct_selector = True
 
+# Parse for Group By
+group_by = None
+for i, token in enumerate(query_tokens.tokens):
+    if token.ttype == sqlparse.tokens.Keyword and token.value.lower() == 'group by':
+        for j in range(i + 1, len(query_tokens.tokens)):
+            if query_tokens.tokens[j].ttype == sqlparse.tokens.Keyword:
+                print("Syntax Error: Expected column name")
+                exit(1)
+            if isinstance(query_tokens.tokens[j], sqlparse.sql.Identifier):
+                group_by = str(query_tokens.tokens[j])
+                break
+        break
 
 # Parse for columns
 columns = []
@@ -226,9 +291,13 @@ for i, token in enumerate(query_tokens.tokens):
             break
         break
 
+
 if is_aggregate and is_non_aggregate:
-    print("Semantic Error: Cannot combine aggregate with non aggregate projection!")
-    exit(0)
+    # Check non aggregate is same as group by column. Only then this case is applicable.
+    for c in columns:
+        if c[2] == 'none' and group_by != c[0]:
+            print("Semantic Error: Cannot combine aggregate with non aggregate projection!")
+            exit(0)
 
 filt = lambda s: True
 
@@ -271,6 +340,66 @@ for i, token in enumerate(query_tokens.tokens):
                 filtered_data.sort(key = key, reverse = reverse)
                 break
 
+for i in range(len(columns)):
+    if i != len(columns) - 1:
+        if columns[i][2] == 'none':
+            print(get_table(columns[i][0]) + "." + columns[i][0] + ",", end='')
+        else:
+            print(columns[i][2] + "(" + get_table(columns[i][0]) + "." + columns[i][0]  + ")" + ",", end='')
+    else:
+        if columns[i][2] == 'none':
+            print(get_table(columns[i][0]) + "." + columns[i][0])
+        else:
+            print(columns[i][2] + "(" + get_table(columns[i][0]) + "." + columns[i][0]  + ")")
+
+
+if group_by != None:
+    # Follow a different path to showing results
+    idx = -1
+    for i, a in enumerate(available_columns):
+        if a == group_by:
+            idx = i
+            break
+    selected_data = {}
+    for d in filtered_data:
+        tmp = []
+        for i in range(len(columns)):
+            for j in range(len(available_columns)):
+                if available_columns[j] == columns[i][0]:
+                    tmp.append(d[j])
+        if not d[idx] in selected_data.keys():
+            selected_data[d[idx]] = []
+        selected_data[d[idx]].append(tmp)    
+
+    DATA = []
+    for k in selected_data.keys():
+        tmp = []
+        for i in range(len(columns)):
+            tmp2 = []
+            for j in range(len(selected_data[k])):
+                tmp2.append(selected_data[k][j][i])
+            if columns[i][0] == group_by:
+                tmp.append(tmp2[0])
+            else:
+                tmp.append(columns[i][1](tmp2))
+        DATA.append(tmp)
+    selected_data = DATA
+    final_data = []
+    for d in selected_data:
+        final_data.append(tuple(d))
+
+    if distinct_selector:
+        final_data = list(set(final_data))
+
+    for d in final_data:
+        for j in range(len(d)):
+            if j != len(d) - 1:
+                print(str(d[j]) + ",", end='')
+            else:
+                print(str(d[j]))
+    exit(0)
+
+
 selected_data = []
 
 for d in filtered_data:
@@ -281,17 +410,6 @@ for d in filtered_data:
                 tmp.append(d[j])
     selected_data.append(tmp)
 
-for i in range(len(columns)):
-    if i != len(columns) - 1:
-        if columns[i][2] == 'none':
-            print(columns[i][0] + ",", end='')
-        else:
-            print(columns[i][2] + "(" + columns[i][0]  + ")" + ",", end='')
-    else:
-        if columns[i][2] == 'none':
-            print(columns[i][0])
-        else:
-            print(columns[i][2] + "(" + columns[i][0]  + ")")
 
 if is_aggregate:
     tmp = []
