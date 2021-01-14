@@ -55,21 +55,21 @@ def parse_column(s):
     find_count = re.compile("count\((.*)\)")
     if find_max.match(s) is not None:
         is_aggregate = True
-        return (find_max.match(s).groups()[0], 'max')
+        return (find_max.match(s).groups()[0], lambda s: max(s), 'max')
     if find_min.match(s) is not None:
         is_aggregate = True
-        return (find_min.match(s).groups()[0], 'min')
+        return (find_min.match(s).groups()[0], lambda s: min(s), 'min')
     if find_mean.match(s) is not None:
         is_aggregate = True
-        return (find_mean.match(s).groups()[0], 'mean')
+        return (find_mean.match(s).groups()[0], lambda s: sum(s) * 1.0 / len(s), 'mean')
     if find_sum.match(s) is not None:
         is_aggregate = True
-        return (find_sum.match(s).groups()[0], 'sum')
+        return (find_sum.match(s).groups()[0], lambda s: sum(s), 'sum')
     if find_count.match(s) is not None:
         is_aggregate = True
-        return (find_count.match(s).groups()[0], 'count')
+        return (find_count.match(s).groups()[0], lambda s: len(s), 'count')
     is_non_aggregate = True
-    return (s, None)
+    return (s, lambda s: s, 'none')
 
 def parse_expression(s):
     s = re.sub(r'where ', '', s)
@@ -93,11 +93,24 @@ def parse_expression(s):
 
 def transform_columns(exp, available_columns):
     for i, v in enumerate(available_columns):
-        print(exp[0])
         if exp[0] == v:
             return (lambda s: exp[1](s[i]))
     print("Semantic Error: Column does not exist!")
     exit(0)
+
+def parse_order_by(s, available_columns):
+    tokens = s.split()
+    if len(tokens) == 2 and tokens[1] == 'ASC':
+        for i, v in enumerate(available_columns):
+            if tokens[0] == v:
+                return ((lambda s: s[i]), False)
+        print("Semantic Error: Column doesn't exist!")
+    if len(tokens) == 2 and tokens[1] == 'DESC':
+        for i, v in enumerate(available_columns):
+            if tokens[0] == v:
+                return ((lambda s: s[i]), True)
+        print("Semantic Error: Column doesn't exist!")
+    print("Syntax Error: Expected column name followed by ASC|DESC")
 
 if len(sys.argv) != 2:
     print("Incorrect Usage! Expected Usage: python3 main.py query")
@@ -178,23 +191,26 @@ for i, token in enumerate(query_tokens.tokens):
                 print("Syntax error: No columns to select!")
                 exit(0)
             if isinstance(query_tokens.tokens[j], sqlparse.sql.Identifier):
-                column_name, aggregate = parse_column(query_tokens.tokens[j])
+                column_name, aggregate, tag = parse_column(query_tokens.tokens[j])
                 if not (column_name in available_columns):
                     print("Semantic Error: Invalid column name", column_name)
                     exit(0)
-                columns.append([column_name, aggregate])
+                columns.append([column_name, aggregate, tag])
                 break
             if isinstance(query_tokens.tokens[j], sqlparse.sql.IdentifierList):
                 for identifier in query_tokens.tokens[j].get_identifiers():
-                    column_name, aggregate = parse_column(identifier)
+                    column_name, aggregate, tag = parse_column(identifier)
                     
                     if not (column_name in available_columns):
                         print("Semantic Error: Invalid column name", column_name)
                         exit(0)
-                    columns.append([column_name, aggregate])
+                    columns.append([column_name, aggregate, tag])
                 break
             if query_tokens.tokens[j].ttype == sqlparse.tokens.Wildcard:
-                columns = available_columns
+                tmp = []
+                for a in available_columns:
+                    tmp.append([a, lambda s: s, 'none'])
+                columns = tmp
                 break
             if query_tokens.tokens[j].ttype == sqlparse.tokens.Keyword and query_tokens.tokens[j].value.upper() == 'DISTINCT':
                 continue
@@ -202,11 +218,11 @@ for i, token in enumerate(query_tokens.tokens):
             if query_tokens.tokens[j].ttype == sqlparse.tokens.Text.Whitespace:
                 continue
             
-            column_name, aggregate = parse_column(query_tokens.tokens[j])
+            column_name, aggregate, tag = parse_column(query_tokens.tokens[j])
             if not (column_name in available_columns):
                 print("Semantic Error: Invalid column name", column_name)
                 exit(0)
-            columns.append([column_name, aggregate])
+            columns.append([column_name, aggregate, tag])
             break
         break
 
@@ -244,6 +260,58 @@ for row in data:
     if filt(row):
         filtered_data.append(row)
 
-print(filtered_data)
-#where = token for token in query_tokens.tokens if isinstance(token, sqlparse.sql.Where)
-#print(where)
+for i, token in enumerate(query_tokens.tokens):
+    if token.ttype == sqlparse.tokens.Keyword and token.value.lower() == 'order by':
+        for j in range(i + 1, len(query_tokens.tokens)):
+            if query_tokens.tokens[j].ttype == sqlparse.tokens.Keyword:
+                print("Syntax Error: Expected Column name after order by but found Keyword!")
+                exit(0)
+            if isinstance(query_tokens.tokens[j], sqlparse.sql.Identifier):
+                key, reverse = parse_order_by(str(query_tokens.tokens[j]), available_columns)
+                filtered_data.sort(key = key, reverse = reverse)
+                break
+
+selected_data = []
+
+for d in filtered_data:
+    tmp = []
+    for i in range(len(columns)):
+        for j in range(len(available_columns)):
+            if available_columns[j] == columns[i][0]:
+                tmp.append(d[j])
+    selected_data.append(tmp)
+
+for i in range(len(columns)):
+    if i != len(columns) - 1:
+        if columns[i][2] == 'none':
+            print(columns[i][0] + ",", end='')
+        else:
+            print(columns[i][2] + "(" + columns[i][0]  + ")" + ",", end='')
+    else:
+        if columns[i][2] == 'none':
+            print(columns[i][0])
+        else:
+            print(columns[i][2] + "(" + columns[i][0]  + ")")
+
+if is_aggregate:
+    tmp = []
+    for i in range(len(columns)):
+        tmp2 = []
+        for j in range(len(selected_data)):
+            tmp2.append(selected_data[j][i])
+        tmp.append(columns[i][1](tmp2))
+    selected_data = [tmp]
+
+final_data = []
+for d in selected_data:
+    final_data.append(tuple(d))
+
+if distinct_selector:
+    final_data = list(set(final_data))
+
+for d in final_data:
+    for j in range(len(d)):
+        if j != len(d) - 1:
+            print(str(d[j]) + ",", end='')
+        else:
+            print(str(d[j]))
