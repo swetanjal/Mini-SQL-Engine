@@ -291,6 +291,13 @@ for i, token in enumerate(query_tokens.tokens):
             break
         break
 
+if group_by != None:
+    # Check if some other column other than group_by is 'none', then syntax error
+    for c in columns:
+        if c[2] == 'none' and group_by != c[0]:
+            print("Semantic Error: Cannot combine aggregate with non aggregate projection!")
+            exit(0)
+
 
 if is_aggregate and is_non_aggregate:
     # Check non aggregate is same as group by column. Only then this case is applicable.
@@ -378,8 +385,10 @@ if group_by != None:
             tmp2 = []
             for j in range(len(selected_data[k])):
                 tmp2.append(selected_data[k][j][i])
-            if columns[i][0] == group_by:
+            if columns[i][0] == group_by and columns[i][2] == 'none':
                 tmp.append(tmp2[0])
+            elif columns[i][0] == group_by:
+                tmp.append(columns[i][1](tmp2))
             else:
                 tmp.append(columns[i][1](tmp2))
         DATA.append(tmp)
