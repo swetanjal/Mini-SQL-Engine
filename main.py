@@ -150,13 +150,15 @@ def parse_order_by(s, available_columns):
             if tokens[0] == v:
                 return ((lambda s: s[i]), False)
         print("Semantic Error: Column doesn't exist!")
+        exit(0)
     if len(tokens) == 2 and tokens[1] == 'DESC':
         for i, v in enumerate(available_columns):
             if tokens[0] == v:
                 return ((lambda s: s[i]), True)
         print("Semantic Error: Column doesn't exist!")
+        exit(0)
     print("Syntax Error: Expected column name followed by ASC|DESC")
-
+    exit(0)
 if len(sys.argv) != 2:
     print("Incorrect Usage! Expected Usage: python3 main.py query")
     exit(0)
@@ -237,7 +239,7 @@ for i, token in enumerate(query_tokens.tokens):
         for j in range(i + 1, len(query_tokens.tokens)):
             if query_tokens.tokens[j].ttype == sqlparse.tokens.Keyword:
                 print("Syntax Error: Expected column name")
-                exit(1)
+                exit(0)
             if isinstance(query_tokens.tokens[j], sqlparse.sql.Identifier):
                 group_by = str(query_tokens.tokens[j])
                 break
@@ -374,6 +376,7 @@ if group_by != None:
             for j in range(len(available_columns)):
                 if available_columns[j] == columns[i][0]:
                     tmp.append(d[j])
+                    break
         if not d[idx] in selected_data.keys():
             selected_data[d[idx]] = []
         selected_data[d[idx]].append(tmp)    
@@ -417,6 +420,7 @@ for d in filtered_data:
         for j in range(len(available_columns)):
             if available_columns[j] == columns[i][0]:
                 tmp.append(d[j])
+                break
     selected_data.append(tmp)
 
 
