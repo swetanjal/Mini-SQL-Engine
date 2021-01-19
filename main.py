@@ -34,11 +34,11 @@ def get_columns(table):
     for i, line in enumerate(lines):
         line = line.strip()
         if line == '<begin_table>':
-            table_name = lines[i + 1].strip()
+            table_name = lines[i + 1].strip().lower()
             cols = []
             j = i + 2
             while lines[j].strip() != '<end_table>':
-                cols.append(lines[j].strip())
+                cols.append(lines[j].strip().lower())
                 j = j + 1
             if table_name == table:
                 return cols
@@ -50,10 +50,10 @@ def get_table(col):
     for i, line in enumerate(lines):
         line = line.strip()
         if line == '<begin_table>':
-            table_name = lines[i + 1].strip()
+            table_name = lines[i + 1].strip().lower()
             j = i + 2
             while lines[j].strip() != '<end_table>':
-                if lines[j].strip() == col:
+                if lines[j].strip().lower() == col:
                     return table_name
                 j = j + 1
 
@@ -145,13 +145,13 @@ def transform_columns(exp, available_columns):
 
 def parse_order_by(s, available_columns):
     tokens = s.split()
-    if len(tokens) == 2 and tokens[1] == 'ASC':
+    if len(tokens) == 2 and tokens[1].upper() == 'ASC':
         for i, v in enumerate(available_columns):
             if tokens[0] == v:
                 return ((lambda s: s[i]), False)
         print("Semantic Error: Column doesn't exist!")
         exit(0)
-    if len(tokens) == 2 and tokens[1] == 'DESC':
+    if len(tokens) == 2 and tokens[1].upper() == 'DESC':
         for i, v in enumerate(available_columns):
             if tokens[0] == v:
                 return ((lambda s: s[i]), True)
@@ -162,7 +162,7 @@ def parse_order_by(s, available_columns):
 if len(sys.argv) != 2:
     print("Incorrect Usage! Expected Usage: python3 main.py query")
     exit(0)
-query = sys.argv[1]
+query = sys.argv[1].lower()
 
 query = query.strip()
 if(query[-1] != ";"):
