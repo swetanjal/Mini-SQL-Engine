@@ -338,6 +338,9 @@ for row in data:
     if filt(row):
         filtered_data.append(row)
 
+key = None
+reverse = None
+
 for i, token in enumerate(query_tokens.tokens):
     if token.ttype == sqlparse.tokens.Keyword and token.value.lower() == 'order by':
         for j in range(i + 1, len(query_tokens.tokens)):
@@ -404,6 +407,8 @@ if group_by != None:
 
     if distinct_selector:
         final_data = list(set(final_data))
+        if key != None:
+            final_data.sort(key = key, reverse = reverse)
 
     for d in final_data:
         for j in range(len(d)):
@@ -443,6 +448,8 @@ for d in selected_data:
 
 if distinct_selector:
     final_data = list(set(final_data))
+    if key != None:
+            final_data.sort(key = key, reverse = reverse)
 
 for d in final_data:
     for j in range(len(d)):
