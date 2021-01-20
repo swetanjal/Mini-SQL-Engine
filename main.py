@@ -362,6 +362,7 @@ for i in range(len(columns)):
             print(columns[i][2] + "(" + get_table(columns[i][0]) + "." + columns[i][0]  + ")")
 
 
+
 if group_by != None:
     # Follow a different path to showing results
     idx = -1
@@ -370,6 +371,7 @@ if group_by != None:
             idx = i
             break
     selected_data = {}
+    
     for d in filtered_data:
         tmp = []
         for i in range(len(columns)):
@@ -432,6 +434,8 @@ if is_aggregate:
             tmp2.append(selected_data[j][i])
         tmp.append(columns[i][1](tmp2))
     selected_data = [tmp]
+
+
 
 final_data = []
 for d in selected_data:
