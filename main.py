@@ -159,6 +159,18 @@ def parse_order_by(s, available_columns):
         exit(0)
     print("Syntax Error: Expected column name followed by ASC|DESC")
     exit(0)
+
+def select_distinct_data(data):
+    DICT = {}
+    res = []
+    for d in data:
+        if d in DICT.keys():
+            continue
+        res.append(d)
+        DICT[d] = 1
+    return res
+
+
 if len(sys.argv) != 2:
     print("Incorrect Usage! Expected Usage: python3 main.py query")
     exit(0)
@@ -338,8 +350,6 @@ for row in data:
     if filt(row):
         filtered_data.append(row)
 
-key = None
-reverse = None
 
 for i, token in enumerate(query_tokens.tokens):
     if token.ttype == sqlparse.tokens.Keyword and token.value.lower() == 'order by':
@@ -406,9 +416,7 @@ if group_by != None:
         final_data.append(tuple(d))
 
     if distinct_selector:
-        final_data = list(set(final_data))
-        if key != None:
-            final_data.sort(key = key, reverse = reverse)
+        final_data = select_distinct_data(final_data)  
 
     for d in final_data:
         for j in range(len(d)):
@@ -447,9 +455,7 @@ for d in selected_data:
     final_data.append(tuple(d))
 
 if distinct_selector:
-    final_data = list(set(final_data))
-    if key != None:
-            final_data.sort(key = key, reverse = reverse)
+    final_data = select_distinct_data(final_data)
 
 for d in final_data:
     for j in range(len(d)):
