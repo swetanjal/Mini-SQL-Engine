@@ -1,0 +1,162 @@
+"select A,E from table1,table2 where E < 6000 and A > 500 group by E order by E;"
+Error: More than one column with group by
+
+"select sum(A),E from table1,table2 where E < 6000 and A > 500 group by E order by E;"
+sum(a) table2.e
+3195, 5117
+3195, 5403
+
+"select distinct A,B,X from table1,table2;"
+Error: Invalid column names format
+
+"Select distinct A,B from table1,table2 where A = 922 AND B = 158;"
+table1.a table1.b
+922, 158
+
+"Select distinct A,B from table1,table2 where A = 0 AND B = 0;"
+table1.a table1.b
+
+"select count(*) from table1,table2,table3;"
+count(*)
+1000
+
+"select A,max(B),min(C) from table1,table2 group by A;"
+table1.a max(b) min(c)
+922, 158, 5727
+640, 773, 5058
+775, 85, 10164
+-551, 811, 1534
+-952, 311, 1318
+-354, 646, 7063
+-497, 335, 4549
+411, 803, 10519
+-900, 718, 9020
+858, 731, 3668
+
+"select distinct A,sum(B),sum(C) from table1,table2 group by A;"
+table1.a sum(b) sum(c)
+922, 1580, 57270
+640, 7730, 50580
+775, 850, 101640
+-551, 8110, 15340
+-952, 3110, 13180
+-354, 6460, 70630
+-497, 3350, 45490
+411, 8030, 105190
+-900, 7180, 90200
+858, 7310, 36680
+
+"select distinct sum(B),sum(C) from table1,table2 group by A;"
+sum(b) sum(c)
+1580, 57270
+7730, 50580
+850, 101640
+8110, 15340
+3110, 13180
+6460, 70630
+3350, 45490
+8030, 105190
+7180, 90200
+7310, 36680
+
+"select max(A),min(B),sum(C) from table1,table2;"
+table1.a table1.b table1.c
+922, 85, 586200
+
+"select count(A) from table1;"
+count(a)
+10
+
+"select count(*) from table1,table2,table3,table3;"
+count(*)
+10000
+
+"select min(A),E from table1,table2 where E < 6000 and A > 500 group by E order by E desc;"
+min(a) table2.e
+640, 5403
+640, 5117
+
+"select max(A) from table1 group by A;"
+(didnt ge its output)
+
+"select A, max(b) from table1 group by A order by A desc;"
+table1.a max(b)
+922, 158
+858, 731
+775, 85
+640, 773
+411, 803
+-354, 646
+-497, 335
+-551, 811
+-900, 718
+-952, 311
+
+"Select distinct A,B from table1,table2 where A > 0 AND B < 6000;"
+table1.a table1.b
+922, 158
+640, 773
+775, 85
+411, 803
+858, 731
+
+"Select distinct A,B from table1 where b = a and b > 700;"
+table1.a table1.b
+
+"select * from table1,table2,table3,table3;"
+printed 1000 rows
+
+"select * from table1;"
+table1.a table1.b table1.c
+922, 158, 5727
+640, 773, 5058
+775, 85, 10164
+-551, 811, 1534
+-952, 311, 1318
+-354, 646, 7063
+-497, 335, 4549
+411, 803, 10519
+-900, 718, 9020
+858, 731, 3668
+
+"select count(*) from table1;"
+count(*)
+10
+
+"Select distinct A,B from table1,table2 where 500 > a;"
+table1.a table1.b
+922, 158
+640, 773
+775, 85
+858, 731
+
+"Select distinct A,B from table1 where 67 = 78;"
+Error: Invalid expression in where clause
+
+"select * from table1,table2 where b = a and d > 800;"
+table1.a table1.b table1.c table2.d table2.e
+
+"select max(B),a from table1 group by A order by A;"
+max(b) table1.a
+311, -952
+718, -900
+811, -551
+335, -497
+646, -354
+803, 411
+773, 640
+85, 775
+731, 858
+158, 922
+
+"select A,E from table1,table2 where E < 6000 and A > 500 group by E order by E;"
+Error: More than one column with group by
+
+"select E,min(A) from table1,table2 where E < 6000 and A > 500 group by E order by E;"
+table2.e min(a)
+5117, 640
+5403, 640
+
+'select count(c),max(*),min(B) from table1;'
+Error:  "*" can only come with count
+

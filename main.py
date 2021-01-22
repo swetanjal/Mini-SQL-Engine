@@ -325,15 +325,15 @@ filt = lambda s: True
 for token in query_tokens.tokens:
     if isinstance(token, sqlparse.sql.Where):
         token = str(token)
-        if token.find(" AND ") != -1:
-            tokens = token.split(" AND ")
+        if token.find(" and ") != -1:
+            tokens = token.split(" and ")
             exp1 = parse_expression(tokens[0])
             exp2 = parse_expression(tokens[1])
             exp1 = transform_columns(exp1, available_columns)
             exp2 = transform_columns(exp2, available_columns)
             filt = lambda s: exp1(s) and exp2(s)
-        elif token.find(" OR ") != -1:
-            tokens = token.split(" OR ")
+        elif token.find(" or ") != -1:
+            tokens = token.split(" or ")
             exp1 = parse_expression(tokens[0])
             exp2 = parse_expression(tokens[1])
             exp1 = transform_columns(exp1, available_columns)
