@@ -10,7 +10,11 @@ def load_table(table):
         toks = line.split(',')
         tmp = []
         for t in toks:
-            tmp.append(int(t))
+            try:
+                tmp.append(int(t))
+            except:
+                t = t.strip()
+                tmp.append(int(t[1:len(t)-1]))
         arr.append(tmp)
     return arr
 
